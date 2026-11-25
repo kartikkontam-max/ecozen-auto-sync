@@ -19,8 +19,7 @@ def sync_data():
     web_app_url = os.environ.get("APPS_SCRIPT_URL")
 
     if not user_id or not user_password or not web_app_url:
-        print("Error: USER_ID, USER_PASSWORD, ya APPS_SCRIPT_URL secret missing hai!")
-        return
+        raise ValueError("Error: USER_ID, USER_PASSWORD, ya APPS_SCRIPT_URL secret missing hai!")
 
     download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
     os.makedirs(download_dir, exist_ok=True)
@@ -47,7 +46,7 @@ def sync_data():
         driver.get("https://ecozen.ai/login.php")
         wait = WebDriverWait(driver, 30)
         
-        # Username enter karein (GitHub Secret se)
+        # Username enter karein
         username_box = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='text' or @type='email' or contains(@placeholder, 'User')]")))
         username_box.clear()
         username_box.send_keys(user_id)
@@ -56,7 +55,7 @@ def sync_data():
         next_btn.click()
         time.sleep(5)
         
-        # Password enter karein (GitHub Secret se)
+        # Password enter karein
         password_box = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='password']")))
         password_box.clear()
         password_box.send_keys(user_password)
@@ -166,11 +165,12 @@ def sync_data():
             except Exception as del_err:
                 print("File delete karne mein warning:", del_err)
         else:
-            print("Downloads folder mein CSV file nahi mili.")
+            raise FileNotFoundError("Downloads folder mein CSV file nahi mili.")
             
     except Exception as e:
         print("Detailed Error aaya:")
         traceback.print_exc()
+        raise
     finally:
         driver.quit()
 
