@@ -19,7 +19,7 @@ def sync_data():
     web_app_url = os.environ.get("APPS_SCRIPT_URL")
 
     if not user_id or not user_password or not web_app_url:
-        raise ValueError("Error: USER_ID, USER_PASSWORD, ya APPS_SCRIPT_URL secret missing hai!")
+        raise ValueError("Error: USER_ID, USER_PASSWORD, or APPS_SCRIPT_URL secret is missing!")
 
     download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
     os.makedirs(download_dir, exist_ok=True)
@@ -32,7 +32,7 @@ def sync_data():
     }
     options.add_experimental_option("prefs", prefs)
     
-    # Headless mode GitHub Actions ke liye zaroori hai
+    # Headless mode is required for GitHub Actions
     options.add_argument("--headless=new")
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--disable-gpu")
@@ -42,11 +42,11 @@ def sync_data():
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     try:
-        # 1. Login Page open karein
+        # 1. Open Login Page
         driver.get("https://ecozen.ai/login.php")
         wait = WebDriverWait(driver, 30)
         
-        # Username enter karein
+        # Enter Username
         username_box = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='text' or @type='email' or contains(@placeholder, 'User')]")))
         username_box.clear()
         username_box.send_keys(user_id)
@@ -55,44 +55,44 @@ def sync_data():
         next_btn.click()
         time.sleep(5)
         
-        # Password enter karein
+        # Enter Password
         password_box = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='password']")))
         password_box.clear()
         password_box.send_keys(user_password)
         
         login_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[normalize-space()='Log In']")))
         login_btn.click()
-        time.sleep(8) # Login ke baad load hone ka proper wait
+        time.sleep(8)  # Wait properly for the dashboard to load after login
         
-        # Screenshot capture to check what cloud browser sees after login
+        # Capture screenshot to verify what the cloud browser sees after login
         try:
             driver.save_screenshot("debug_screen.png")
-            print("Debug screenshot successfully save ho gaya hai.")
+            print("Debug screenshot saved successfully.")
         except Exception as sc_err:
-            print("Screenshot lene mein warning:", sc_err)
+            print("Warning while taking screenshot:", sc_err)
         
-        # 2. Retail Care par click karein
+        # 2. Click on Retail Care
         retail_care = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Retail Care')]")))
         driver.execute_script("arguments[0].click();", retail_care)
         time.sleep(3)
         
-        # 3. Tickets par click karein
+        # 3. Click on Tickets
         tickets_link = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Tickets')]")))
         driver.execute_script("arguments[0].click();", tickets_link)
         time.sleep(5)
         
-        # 4. Status ke samne wala 'Select all' button click karna
+        # 4. Click the 'Select all' button next to Status
         try:
             select_all_status = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Status')]/following::button[normalize-space()='Select all'][1] | //*[contains(text(), 'Select all')]")))
             driver.execute_script("arguments[0].click();", select_all_status)
             time.sleep(3)
         except Exception as e:
-            print("Status Select all click karne mein warning:", e)
+            print("Warning while clicking Status 'Select all':", e)
             
-        # 5. Exact 1 Month Date Range Automatic Set karna
+        # 5. Automatically set an exact 1-month date range
         end_date = datetime.today().strftime('%d-%m-%Y')
         start_date = (datetime.today() - relativedelta(months=1)).strftime('%d-%m-%Y')
-        print(f"Automatic Date Range set ki ja rahi hai: {start_date} se {end_date}")
+        print(f"Setting automatic date range: {start_date} to {end_date}")
         
         try:
             date_inputs = driver.find_elements(By.XPATH, "//input[@type='text']")
@@ -121,15 +121,15 @@ def sync_data():
                 
             time.sleep(3)
         except Exception as e:
-            print("Date range set karne mein error:", e)
+            print("Error while setting date range:", e)
         
-        # 6. 'Download CSV' button par click karein
+        # 6. Click on the 'Download CSV' button
         download_csv_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Download CSV')]")))
         driver.execute_script("arguments[0].scrollIntoView(true);", download_csv_btn)
         driver.execute_script("arguments[0].click();", download_csv_btn)
-        print("CSV file background mein download ho rahi hai...")
+        print("Downloading CSV file in the background...")
         
-        # 7. File download hone ka wait karna
+        # 7. Wait for the file to finish downloading
         file_found = False
         timeout_counter = 0
         latest_file = ""
@@ -144,11 +144,11 @@ def sync_data():
             timeout_counter += 1
             
         if file_found:
-            print(f"File mil gayi hai: {latest_file}")
+            print(f"File found: {latest_file}")
             df = pd.read_csv(latest_file)
             df = df.fillna("")
             
-            print(f"CSV file mein total rows mili hain: {len(df)}")
+            print(f"Total rows found in CSV file: {len(df)}")
             records = df.to_dict(orient="records")
             
             payload = {
@@ -161,14 +161,14 @@ def sync_data():
             
             try:
                 os.remove(latest_file)
-                print("Downloaded CSV file ko computer se delete kar diya gaya hai.")
+                print("Downloaded CSV file deleted from local storage.")
             except Exception as del_err:
-                print("File delete karne mein warning:", del_err)
+                print("Warning while deleting file:", del_err)
         else:
-            raise FileNotFoundError("Downloads folder mein CSV file nahi mili.")
+            raise FileNotFoundError("CSV file not found in the Downloads folder.")
             
     except Exception as e:
-        print("Detailed Error aaya:")
+        print("Detailed error occurred:")
         traceback.print_exc()
         raise
     finally:
