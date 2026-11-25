@@ -1,0 +1,46 @@
+name: Auto Sync Data
+
+on:
+  schedule:
+    - cron: "*/55 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Active Hours (9 AM - 9 PM IST)
+        id: time_check
+        run: |
+          NOW_MIN=$(TZ="Asia/Kolkata" date +%H:%M | awk -F: '{print ($1 * 60) + $2}')
+          START_MIN=$((9 * 60))   # 09:00 AM = 540
+          END_MIN=$((21 * 60))   # 09:00 PM = 1260
+
+          if [ "$NOW_MIN" -ge "$START_MIN" ] && [ "$NOW_MIN" -le "$END_MIN" ]; then
+            echo "run_sync=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_sync=false" >> "$GITHUB_OUTPUT"
+            echo "Outside active window (09:00 - 21:00 IST). Skipping sync."
+          fi
+
+      - name: Checkout Repository
+        if: steps.time_check.outputs.run_sync == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        if: steps.time_check.outputs.run_sync == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        if: steps.time_check.outputs.run_sync == 'true'
+        run: pip install -r requirements.txt
+
+      - name: Run Sync Script
+        if: steps.time_check.outputs.run_sync == 'true'
+        env:
+          APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
+          USER_ID: ${{ secrets.USER_ID }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+        run: python sync.py
